@@ -38,6 +38,14 @@ class Api::V1::ExchangeRatesController < Api::V1::BaseController
   end
 
   private
+    def ensure_read_scope
+      authorize_scope!(:read)
+    end
+
+    def ensure_write_scope
+      authorize_scope!(:write)
+    end
+
     def set_exchange_rate
       @exchange_rate = ExchangeRate.find(params[:id])
     end

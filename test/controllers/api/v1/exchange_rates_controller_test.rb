@@ -31,7 +31,9 @@ class Api::V1::ExchangeRatesControllerTest < ActionDispatch::IntegrationTest
       post api_v1_exchange_rates_url, params: params, headers: api_headers(@api_key)
     end
     assert_response :success
-    rate = ExchangeRate.last
+    # Random UUID primary keys mean .last isn't reliably the just-created row
+    # once fixtures are in the table, so look it up by its unique key instead.
+    rate = ExchangeRate.find_by!(from_currency: "KZT", to_currency: "CZK", date: Date.current)
     assert_equal "imported", rate.source
 
     assert_no_difference "ExchangeRate.count" do
