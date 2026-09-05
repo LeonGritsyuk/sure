@@ -11,7 +11,8 @@ class ExchangeRatesControllerTest < ActionDispatch::IntegrationTest
       from_currency: "EUR",
       to_currency: "USD",
       date: Date.current,
-      rate: 1.2
+      rate: 1.2,
+      source: "provider"
     )
 
     get exchange_rate_url, params: {
@@ -23,6 +24,26 @@ class ExchangeRatesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     json_response = JSON.parse(response.body)
     assert_equal 1.2, json_response["rate"]
+    assert_equal "provider", json_response["source"]
+  end
+
+  test "manual exchange rate overrides a provider rate for the same pair and date" do
+    rate = ExchangeRate.create!(
+      from_currency: "KZT",
+      to_currency: "CZK",
+      date: Date.current,
+      rate: 0.00518,
+      source: "provider"
+    )
+
+    rate.update!(rate: 0.00523, source: "manual")
+
+    get exchange_rate_url, params: { from: "KZT", to: "CZK", date: Date.current }
+
+    assert_response :success
+    json_response = JSON.parse(response.body)
+    assert_equal 0.00523, json_response["rate"]
+    assert_equal "manual", json_response["source"]
   end
 
   test "returns same_currency flag for matching currencies" do

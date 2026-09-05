@@ -386,6 +386,7 @@ Rails.application.routes.draw do
     resource :ai_prompts, only: :show
     resource :llm_usage, only: :show
     resource :guides, only: :show
+    resources :exchange_rates, only: %i[index new create edit update destroy]
     get "bank_sync", to: redirect("/settings/providers", status: 301)
     resource :providers, only: %i[show update] do
       collection do
@@ -719,6 +720,9 @@ Rails.application.routes.draw do
       resources :rule_runs, only: [ :index, :show ]
       resources :securities, only: [ :index, :show ]
       resources :security_prices, only: [ :index, :show ]
+      resources :exchange_rates, only: [ :index, :show, :create, :update, :destroy ] do
+        get :missing, on: :collection
+      end
       resources :tags, only: [ :index, :show, :create, :update, :destroy ]
 
       resources :transactions, only: [ :index, :show, :create, :update, :destroy ]

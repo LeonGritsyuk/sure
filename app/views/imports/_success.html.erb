@@ -50,5 +50,17 @@
       full_width: true,
       href: root_path
     ) %>
+
+    <% if defined?(@missing_exchange_rates) && @missing_exchange_rates.any? %>
+      <div class="rounded-lg border border-warning bg-warning/5 p-4 text-left">
+        <p class="text-sm font-medium text-warning"><%= t(".missing_rates.title", count: @missing_exchange_rates.size) %></p>
+        <div class="mt-2 space-y-1 text-xs text-secondary">
+          <% @missing_exchange_rates.first(5).each do |missing| %>
+            <p><%= missing[:from_currency] %> / <%= missing[:to_currency] %> · <%= missing[:date] %></p>
+          <% end %>
+        </div>
+        <%= render DS::Link.new(text: t(".missing_rates.review"), icon: "arrow-right", href: settings_exchange_rates_path, variant: :outline, size: :sm, class: "mt-3") %>
+      </div>
+    <% end %>
   </div>
 </div>

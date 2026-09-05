@@ -31,6 +31,9 @@ class ExchangeRatesController < ApplicationController
     end
 
     rate_value = rate_obj.is_a?(Numeric) ? rate_obj : rate_obj.rate
-    render json: { rate: rate_value.to_f }
+    response = { rate: rate_value.to_f }
+    response[:date] = rate_obj.date if rate_obj.respond_to?(:date)
+    response[:source] = rate_obj.source if rate_obj.respond_to?(:source)
+    render json: response
   end
 end

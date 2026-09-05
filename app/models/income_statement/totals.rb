@@ -61,7 +61,7 @@ class IncomeStatement::Totals
           c.id as category_id,
           c.parent_id as parent_category_id,
           CASE WHEN at.kind IN ('investment_contribution', 'loan_payment') THEN 'expense' WHEN ae.amount < 0 THEN 'income' ELSE 'expense' END as classification,
-          ABS(SUM(CASE WHEN at.kind IN ('investment_contribution', 'loan_payment') THEN ABS(ae.amount * COALESCE(er.rate, 1)) ELSE ae.amount * COALESCE(er.rate, 1) END)) as total,
+          ABS(SUM(CASE WHEN at.kind IN ('investment_contribution', 'loan_payment') THEN ABS(ae.amount * converted.rate) ELSE ae.amount * converted.rate END)) as total,
           COUNT(ae.id) as transactions_count,
           false as is_uncategorized_investment
         FROM (#{@transactions_scope.to_sql}) at
@@ -73,6 +73,9 @@ class IncomeStatement::Totals
           er.from_currency = ae.currency AND
           er.to_currency = :target_currency
         )
+        CROSS JOIN LATERAL (
+          SELECT CASE WHEN ae.currency = :target_currency THEN 1 ELSE er.rate END AS rate
+        ) converted
         WHERE at.kind NOT IN (#{budget_excluded_kinds_sql})
           AND ae.excluded = false
           AND a.family_id = :family_id
@@ -90,7 +93,7 @@ class IncomeStatement::Totals
           c.id as category_id,
           c.parent_id as parent_category_id,
           CASE WHEN at.kind IN ('investment_contribution', 'loan_payment') THEN 'expense' WHEN ae.amount < 0 THEN 'income' ELSE 'expense' END as classification,
-          ABS(SUM(CASE WHEN at.kind IN ('investment_contribution', 'loan_payment') THEN ABS(ae.amount * COALESCE(er.rate, 1)) ELSE ae.amount * COALESCE(er.rate, 1) END)) as total,
+          ABS(SUM(CASE WHEN at.kind IN ('investment_contribution', 'loan_payment') THEN ABS(ae.amount * converted.rate) ELSE ae.amount * converted.rate END)) as total,
           COUNT(ae.id) as entry_count,
           false as is_uncategorized_investment
         FROM (#{@transactions_scope.to_sql}) at
@@ -102,6 +105,9 @@ class IncomeStatement::Totals
           er.from_currency = ae.currency AND
           er.to_currency = :target_currency
         )
+        CROSS JOIN LATERAL (
+          SELECT CASE WHEN ae.currency = :target_currency THEN 1 ELSE er.rate END AS rate
+        ) converted
         WHERE at.kind NOT IN (#{budget_excluded_kinds_sql})
           AND (
             at.investment_activity_label IS NULL

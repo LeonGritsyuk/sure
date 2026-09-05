@@ -40,7 +40,8 @@ class InvestmentStatement::Totals
     # Aggregate trades by direction (buy vs sell)
     # Buys (qty > 0) = contributions (cash going out to buy securities)
     # Sells (qty < 0) = withdrawals (cash coming in from selling securities)
-    # Missing FX rates preserve InvestmentStatement's existing 1:1 fallback.
+    # Same-currency entries need no FX row; truly-unconvertible foreign amounts
+    # (no rate available) are excluded from the totals rather than assumed 1:1.
     #
     # account_ids is already scoped to the family's visible (draft/active)
     # investment accounts, so the query trusts that input and skips a join back
@@ -48,8 +49,8 @@ class InvestmentStatement::Totals
     def aggregation_sql
       <<~SQL
         SELECT
-          COALESCE(SUM(CASE WHEN trades.qty > 0 THEN ABS(entries.amount * COALESCE(er.rate, 1)) ELSE 0 END), 0) as contributions,
-          COALESCE(SUM(CASE WHEN trades.qty < 0 THEN ABS(entries.amount * COALESCE(er.rate, 1)) ELSE 0 END), 0) as withdrawals,
+          COALESCE(SUM(CASE WHEN trades.qty > 0 THEN ABS(entries.amount * converted.rate) ELSE 0 END), 0) as contributions,
+          COALESCE(SUM(CASE WHEN trades.qty < 0 THEN ABS(entries.amount * converted.rate) ELSE 0 END), 0) as withdrawals,
           COUNT(trades.id) as trades_count
         FROM entries
         JOIN trades ON trades.id = entries.entryable_id AND entries.entryable_type = 'Trade'
@@ -58,6 +59,9 @@ class InvestmentStatement::Totals
           er.from_currency = entries.currency AND
           er.to_currency = :target_currency
         )
+        CROSS JOIN LATERAL (
+          SELECT CASE WHEN entries.currency = :target_currency THEN 1 ELSE er.rate END AS rate
+        ) converted
         WHERE entries.account_id IN (:account_ids)
           AND entries.date BETWEEN :start_date AND :end_date
           AND entries.excluded = false

@@ -36,6 +36,9 @@
     <%= form.select :currency_col_label,
                     import.csv_headers,
                     { include_blank: t(".default"), label: t(".currency_label"), container_class: "w-1/5" } %>
+    <%= form.select :exchange_rate_col_label,
+            import.csv_headers,
+            { include_blank: t(".leave_empty"), label: t(".exchange_rate_label"), container_class: "w-1/5" } %>
     <%= form.select :number_format,
                     Import::NUMBER_FORMATS.keys,
                     { label: t(".format_label"), prompt: t(".select_format"), container_class: "w-2/5" },
@@ -120,6 +123,14 @@
   <%= form.select :notes_col_label,
                   import.csv_headers,
                   { include_blank: t(".leave_empty"), label: t(".notes_label") } %>
+  <div class="grid gap-3 md:grid-cols-2">
+    <%= form.select :exchange_rate_from_col_label,
+                    import.csv_headers,
+                    { include_blank: t(".leave_empty"), label: t(".exchange_rate_from_label") } %>
+    <%= form.select :exchange_rate_to_col_label,
+                    import.csv_headers,
+                    { include_blank: t(".leave_empty"), label: t(".exchange_rate_to_label") } %>
+  </div>
 
   <%= form.submit t(".apply_configuration"), disabled: import.complete? %>
 <% end %>

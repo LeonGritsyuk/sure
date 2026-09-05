@@ -24,17 +24,15 @@ class Balance::SyncCache
 
     def holdings_value_by_date
       @holdings_value_by_date ||= account.holdings.each_with_object(Hash.new(0)) do |h, totals|
-        begin
-          converted = Money.new(h.amount, h.currency).exchange_to(account.currency, date: h.date).amount
-        rescue Money::ConversionError
-          converted = h.amount # fallback to 1:1 conversion rate if exchange rate unavailable
-        end
+        converted = Money.new(h.amount, h.currency).exchange_to(account.currency, date: h.date).amount
         totals[h.date] += converted
+      rescue Money::ConversionError
+        next
       end
     end
 
     def converted_entries
-      @converted_entries ||= account.entries.excluding_pending.excluding_split_parents.includes(:entryable).order(:date).to_a.map do |e|
+      @converted_entries ||= account.entries.excluding_pending.excluding_split_parents.includes(:entryable).order(:date).to_a.filter_map do |e|
         custom_rate = e.entryable.exchange_rate if e.entryable.respond_to?(:exchange_rate)
 
         # Use Money#exchange_to with custom rate if available, standard lookup otherwise.
@@ -52,6 +50,8 @@ class Balance::SyncCache
         e.amount = new_amount
         e.currency = account.currency
         e
+      rescue Money::ConversionError
+        nil
       end
     end
 end

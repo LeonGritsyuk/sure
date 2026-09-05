@@ -104,6 +104,6 @@ class BalanceSheet::AccountTotals
       return account.balance if account.currency == family.currency
 
       rate = exchange_rates[account.currency]
-      account.balance * rate
+      rate ? account.balance * rate : BigDecimal(0)
     end
 end

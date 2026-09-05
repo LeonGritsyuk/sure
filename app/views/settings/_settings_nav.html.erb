@@ -20,7 +20,8 @@ nav_sections = [
       { label: t(".rules_label"), path: rules_path, icon: "git-branch" },
       { label: t(".merchants_label"), path: family_merchants_path, icon: "store" },
       { label: t(".recurring_transactions_label"), path: recurring_transactions_path, icon: "repeat" },
-      { label: t(".statement_vault_label"), path: account_statements_path, icon: "archive", if: Current.user&.admin? }
+      { label: t(".statement_vault_label"), path: account_statements_path, icon: "archive", if: Current.user&.admin? },
+      { label: t(".exchange_rates_label"), path: settings_exchange_rates_path, icon: "arrow-left-right" }
     ]
   },
   (

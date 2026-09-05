@@ -26,6 +26,9 @@ class Import::Preflight
     price_col_label
     entity_type_col_label
     currency_col_label
+    exchange_rate_col_label
+    exchange_rate_from_col_label
+    exchange_rate_to_col_label
     exchange_operating_mic_col_label
     date_format
     number_format

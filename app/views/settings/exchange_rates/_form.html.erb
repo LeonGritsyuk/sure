@@ -1,0 +1,9 @@
+<%= styled_form_with model: exchange_rate, url: form_url, method: form_method, class: "space-y-4" do |form| %>
+  <div class="grid gap-3 md:grid-cols-2">
+    <%= form.select :from_currency, currency_picker_options_for_family(Current.family), { label: t("settings.exchange_rates.from") } %>
+    <%= form.select :to_currency, currency_picker_options_for_family(Current.family), { label: t("settings.exchange_rates.to") } %>
+    <%= form.date_field :date, label: t("settings.exchange_rates.date") %>
+    <%= form.number_field :rate, label: t("settings.exchange_rates.rate"), step: "0.000000000001", min: 0 %>
+  </div>
+  <%= form.submit t("settings.exchange_rates.save") %>
+<% end %>

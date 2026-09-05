@@ -99,7 +99,8 @@ module Accountable
         if account.currency == family.currency
           account.balance
         else
-          account.balance * (rates[account.currency] || 1)
+          rate = rates[account.currency]
+          rate ? account.balance * rate : BigDecimal(0)
         end
       }
     end

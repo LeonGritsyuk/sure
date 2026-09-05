@@ -1,0 +1,73 @@
+<%= content_for :page_title, t("settings.exchange_rates.title") %>
+
+<%= settings_section title: t("settings.exchange_rates.title") do %>
+  <div class="space-y-4">
+    <% if @missing_exchange_rates.any? %>
+      <div class="rounded-lg border border-warning bg-warning/5 p-4">
+        <p class="text-sm font-medium text-warning"><%= t("settings.exchange_rates.missing_title", count: @missing_exchange_rates.size) %></p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <% @missing_exchange_rates.first(10).each do |missing| %>
+            <%= render DS::Link.new(
+              text: "#{missing[:from_currency]} / #{missing[:to_currency]} · #{missing[:date]}",
+              icon: "plus",
+              href: new_settings_exchange_rate_path(from: missing[:from_currency], to: missing[:to_currency], date: missing[:date]),
+              variant: :outline,
+              size: :sm
+            ) %>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <div class="flex items-center justify-between gap-3">
+      <p class="text-sm text-secondary"><%= t("settings.exchange_rates.description") %></p>
+      <%= render DS::Link.new(text: t("settings.exchange_rates.add"), icon: "plus", href: new_settings_exchange_rate_path, variant: :primary) %>
+    </div>
+
+    <%= styled_form_with url: settings_exchange_rates_path, method: :get, class: "grid gap-3 md:grid-cols-4" do |form| %>
+      <%= form.select :from, currency_picker_options_for_family(Current.family), { label: t("settings.exchange_rates.from"), include_blank: t("settings.exchange_rates.any") }, selected: params[:from] %>
+      <%= form.select :to, currency_picker_options_for_family(Current.family), { label: t("settings.exchange_rates.to"), include_blank: t("settings.exchange_rates.any") }, selected: params[:to] %>
+      <%= form.date_field :date, label: t("settings.exchange_rates.date"), value: params[:date] %>
+      <%= form.select :source, ExchangeRate::SOURCES.map { |source| [ t("settings.exchange_rates.sources.#{source}"), source ] }, { label: t("settings.exchange_rates.source"), include_blank: t("settings.exchange_rates.any") }, selected: params[:source] %>
+      <%= form.submit t("settings.exchange_rates.filter"), class: "md:col-span-4" %>
+    <% end %>
+
+    <div class="overflow-x-auto rounded-lg bg-container shadow-border-xs">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b border-divider text-left text-xs font-medium uppercase text-secondary">
+            <th class="px-3 py-3"><%= t("settings.exchange_rates.date") %></th>
+            <th class="px-3 py-3"><%= t("settings.exchange_rates.pair") %></th>
+            <th class="px-3 py-3"><%= t("settings.exchange_rates.rate") %></th>
+            <th class="px-3 py-3"><%= t("settings.exchange_rates.source") %></th>
+            <th class="px-3 py-3 text-right"><%= t("settings.exchange_rates.actions") %></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @exchange_rates.each do |exchange_rate| %>
+            <tr class="border-b border-subdued text-sm">
+              <td class="px-3 py-3 text-secondary"><%= l(exchange_rate.date) %></td>
+              <td class="px-3 py-3 font-medium text-primary"><%= exchange_rate.from_currency %> / <%= exchange_rate.to_currency %></td>
+              <td class="px-3 py-3 text-primary"><%= exchange_rate.rate %></td>
+              <td class="px-3 py-3 text-secondary">
+                <%= t("settings.exchange_rates.sources.#{exchange_rate.source}") %>
+                <% if exchange_rate.previous_rate.present? %>
+                  <span class="block text-xs"><%= t("settings.exchange_rates.previous", rate: exchange_rate.previous_rate) %></span>
+                <% end %>
+              </td>
+              <td class="px-3 py-3 text-right">
+                <%= render DS::Link.new(text: t("settings.exchange_rates.edit"), icon: "pencil", href: edit_settings_exchange_rate_path(exchange_rate), variant: :ghost, size: :sm) %>
+                <%= button_to settings_exchange_rate_path(exchange_rate), method: :delete, class: "ml-2 text-destructive", data: { turbo_confirm: t("settings.exchange_rates.delete_confirm") }, aria: { label: t("settings.exchange_rates.delete") } do %>
+                  <%= icon("trash-2", size: "sm", color: "destructive") %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @exchange_rates.empty? %>
+        <p class="p-8 text-center text-sm font-medium text-secondary"><%= t("settings.exchange_rates.empty") %></p>
+      <% end %>
+    </div>
+  </div>
+<% end %>

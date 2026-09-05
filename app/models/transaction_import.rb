@@ -46,6 +46,7 @@ class TransactionImport < Import
           # Update existing transaction instead of creating a new one
           duplicate_entry.transaction.category = category if category.present?
           duplicate_entry.transaction.tags = tags if tags.any?
+          duplicate_entry.transaction.exchange_rate = row.exchange_rate.presence if row.exchange_rate.present?
           duplicate_entry.notes = row.notes if row.notes.present?
           duplicate_entry.import = self
           duplicate_entry.import_locked = true  # Protect from provider sync overwrites
@@ -57,6 +58,7 @@ class TransactionImport < Import
           new_transactions << Transaction.new(
             category: category,
             tags: tags,
+            exchange_rate: row.exchange_rate.presence,
             entry: Entry.new(
               account: mapped_account,
               date: row.date_iso,
@@ -87,7 +89,7 @@ class TransactionImport < Import
   end
 
   def column_keys
-    base = %i[date amount name currency category tags notes]
+    base = %i[date amount name currency exchange_rate exchange_rate_from exchange_rate_to category tags notes]
     base.unshift(:account) if account.nil?
     base
   end

@@ -22,8 +22,8 @@ module ExchangeRate::Provided
       # and trigger redundant API calls.
       nearest = where(from_currency: from, to_currency: to)
                   .where(date: (date - NEAREST_RATE_LOOKBACK_DAYS)..date)
-                  .order(date: :desc)
-                  .first
+                    .order(Arel.sql("CASE WHEN source IN ('manual', 'imported') THEN 0 ELSE 1 END"), date: :desc)
+                    .first
       return nearest if nearest.present?
 
       return nil unless provider.present? # No provider configured (some self-hosted apps)
@@ -40,6 +40,7 @@ module ExchangeRate::Provided
           date: rate.date
         ) do |exchange_rate|
           exchange_rate.rate = rate.rate
+          exchange_rate.source = "provider"
         end if cache
       rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
         # Race condition: another process inserted between our SELECT and INSERT.
@@ -56,7 +57,8 @@ module ExchangeRate::Provided
     end
 
     # Batch-fetches exchange rates for multiple source currencies.
-    # Returns a hash mapping each currency to its numeric rate, defaulting to 1 when unavailable.
+    # Missing foreign-currency rates remain nil; only same-currency conversion
+    # may use an implicit rate of 1.0.
     def rates_for(currencies, to:, date: Date.current)
       unique_currencies = currencies.uniq
       return {} if unique_currencies.empty?
@@ -71,7 +73,7 @@ module ExchangeRate::Provided
       nearest_rates = if missing.any?
         where(from_currency: missing, to_currency: to)
           .where(date: (date - NEAREST_RATE_LOOKBACK_DAYS)..date)
-          .order(date: :desc)
+          .order(Arel.sql("CASE WHEN source IN ('manual', 'imported') THEN 0 ELSE 1 END"), date: :desc)
           .to_a
           .each_with_object({}) do |r, map|
             map[r.from_currency] ||= r  # keep most-recent (first due to ORDER BY date DESC)
@@ -91,11 +93,11 @@ module ExchangeRate::Provided
       unique_currencies.each_with_object({}) do |currency, result|
         rate = exact_rates[currency] || nearest_rates[currency] || fetched_rates[currency]
         if rate.nil?
-          Rails.logger.warn("No exchange rate found for #{currency}/#{to} on #{date}, using 1")
+          Rails.logger.warn("No exchange rate found for #{currency}/#{to} on #{date}")
         elsif rate.date != date
           Rails.logger.debug("FX rate #{currency}/#{to}: using #{rate.date} for #{date} (gap=#{(date - rate.date).to_i}d)")
         end
-        result[currency] = rate&.rate || 1
+        result[currency] = rate&.rate
       end
     end
 

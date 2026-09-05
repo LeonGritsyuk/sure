@@ -7,6 +7,8 @@ class Import::Row < ApplicationRecord
   validate :date_valid
   validate :required_columns
   validate :currency_is_valid
+  validate :exchange_rate_is_valid
+  validate :exchange_rate_currencies_are_valid
 
   scope :ordered, -> { order(:source_row_number, :id) }
 
@@ -157,6 +159,25 @@ class Import::Row < ApplicationRecord
         Money::Currency.new(currency)
       rescue Money::Currency::UnknownCurrencyError
         errors.add(:currency, "is not a valid currency code")
+      end
+    end
+
+    def exchange_rate_is_valid
+      return if exchange_rate.blank?
+
+      value = BigDecimal(exchange_rate.to_s)
+      errors.add(:exchange_rate, "must be greater than 0") unless value.positive?
+    rescue ArgumentError
+      errors.add(:exchange_rate, "must be a number")
+    end
+
+    def exchange_rate_currencies_are_valid
+      [ [ :exchange_rate_from, exchange_rate_from ], [ :exchange_rate_to, exchange_rate_to ] ].each do |attribute, value|
+        next if value.blank?
+
+        Money::Currency.new(value)
+      rescue Money::Currency::UnknownCurrencyError, ArgumentError
+        errors.add(attribute, "is not a valid currency code")
       end
     end
 end

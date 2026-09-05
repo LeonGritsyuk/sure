@@ -68,6 +68,25 @@ class ExchangeRateTest < ActiveSupport::TestCase
     assert_nil ExchangeRate.find_or_fetch_rate(from: "USD", to: "EUR", date: Date.current, cache: true)
   end
 
+  test "rates_for keeps missing foreign currency rates unresolved" do
+    ExchangeRate.delete_all
+    @provider.expects(:fetch_exchange_rate).returns(provider_error_response(StandardError.new("missing")))
+
+    rates = ExchangeRate.rates_for([ "KZT" ], to: "CZK", date: Date.current)
+
+    assert_nil rates["KZT"]
+  end
+
+  test "rejects invalid and identical currency pairs" do
+    invalid = ExchangeRate.new(from_currency: "NOPE", to_currency: "USD", date: Date.current, rate: 1)
+    identical = ExchangeRate.new(from_currency: "USD", to_currency: "usd", date: Date.current, rate: 1)
+
+    assert_not invalid.valid?
+    assert_includes invalid.errors[:from_currency], "is invalid"
+    assert_not identical.valid?
+    assert_includes identical.errors[:to_currency], "must differ"
+  end
+
   test "reuses nearest cached rate within lookback window instead of calling provider" do
     # Simulate a rate saved under Friday's date when Saturday is requested
     friday = 1.day.ago.to_date

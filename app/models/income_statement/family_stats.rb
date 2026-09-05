@@ -65,7 +65,7 @@ class IncomeStatement::FamilyStats
           SELECT
             date_trunc(:interval, ae.date) as period,
             CASE WHEN t.kind IN ('investment_contribution', 'loan_payment') THEN 'expense' WHEN ae.amount < 0 THEN 'income' ELSE 'expense' END as classification,
-            SUM(CASE WHEN t.kind IN ('investment_contribution', 'loan_payment') THEN ABS(ae.amount * COALESCE(er.rate, 1)) ELSE ae.amount * COALESCE(er.rate, 1) END) as total
+            SUM(CASE WHEN t.kind IN ('investment_contribution', 'loan_payment') THEN ABS(ae.amount * converted.rate) ELSE ae.amount * converted.rate END) as total
           FROM transactions t
           JOIN entries ae ON ae.entryable_id = t.id AND ae.entryable_type = 'Transaction'
           JOIN accounts a ON a.id = ae.account_id
@@ -74,6 +74,9 @@ class IncomeStatement::FamilyStats
             er.from_currency = ae.currency AND
             er.to_currency = :target_currency
           )
+          CROSS JOIN LATERAL (
+            SELECT CASE WHEN ae.currency = :target_currency THEN 1 ELSE er.rate END AS rate
+          ) converted
           WHERE a.family_id = :family_id
             AND t.kind NOT IN (#{budget_excluded_kinds_sql})
             AND ae.excluded = false

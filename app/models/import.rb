@@ -393,6 +393,9 @@ class Import < ApplicationRecord
         price: sanitize_number(csv_value(row, price_col_label, "price")).to_s,
         amount: sanitize_number(csv_value(row, amount_col_label, "amount", "balance")).to_s,
         currency: (csv_value(row, currency_col_label, "currency") || default_currency).to_s,
+        exchange_rate: sanitize_number(csv_value(row, exchange_rate_col_label, "fx_rate", "exchange_rate")).to_s,
+        exchange_rate_from: csv_value(row, exchange_rate_from_col_label, "fx_from", "exchange_rate_from").to_s.upcase,
+        exchange_rate_to: csv_value(row, exchange_rate_to_col_label, "fx_to", "exchange_rate_to").to_s.upcase,
         name: (csv_value(row, name_col_label, "name") || default_row_name).to_s,
         category: csv_value(row, category_col_label, "category").to_s,
         tags: csv_value(row, tags_col_label, "tags").to_s,
@@ -496,6 +499,7 @@ class Import < ApplicationRecord
         "category_col_label", "tags_col_label", "account_col_label",
         "qty_col_label", "ticker_col_label", "price_col_label",
         "entity_type_col_label", "notes_col_label", "currency_col_label",
+        "exchange_rate_col_label", "exchange_rate_from_col_label", "exchange_rate_to_col_label",
         "date_format", "signage_convention", "number_format",
         "exchange_operating_mic_col_label",
         "rows_to_skip"

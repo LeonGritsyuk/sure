@@ -42,7 +42,7 @@ class Holding::PortfolioCache
     begin
       converted_amount = price_money.exchange_to(account.currency, date: date).amount
     rescue Money::ConversionError
-      converted_amount = price.price
+      return nil
     end
 
     Security::Price.new(

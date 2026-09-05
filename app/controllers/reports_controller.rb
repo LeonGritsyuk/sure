@@ -430,7 +430,7 @@ class ReportsController < ApplicationController
         begin
           converted_amount = Money.new(entry.amount.abs, entry.currency).exchange_to(family_currency).amount
         rescue Money::ConversionError
-          converted_amount = entry.amount.abs
+          next
         end
 
         if category.nil?
@@ -556,7 +556,7 @@ class ReportsController < ApplicationController
       holding_rates = ExchangeRate.rates_for(foreign_holding_currencies, to: currency, date: Date.current)
       convert_current = ->(amount, from) {
         numeric = to_numeric.call(amount)
-        from == currency ? numeric : numeric * (holding_rates[from] || 1)
+        from == currency ? numeric : (holding_rates[from] ? numeric * holding_rates[from] : nil)
       }
 
       # Realized gains are locked at trade time, so convert each at its own
@@ -568,7 +568,8 @@ class ReportsController < ApplicationController
       end
       convert_trade = ->(amount, from, date) {
         numeric = to_numeric.call(amount)
-        from == currency ? numeric : numeric * (rates_by_trade_date.dig(date, from) || 1)
+        rate = rates_by_trade_date.dig(date, from)
+        from == currency ? numeric : (rate ? numeric * rate : nil)
       }
 
       # Build metrics per treatment
@@ -579,13 +580,13 @@ class ReportsController < ApplicationController
         # Sum unrealized gains from holdings (only those with known cost basis)
         unrealized = holdings.sum do |h|
           trend = h.trend
-          trend ? convert_current.call(trend.value, h.currency) : 0
+          trend ? (convert_current.call(trend.value, h.currency) || 0) : 0
         end
 
         # Sum realized gains from sell trades
         realized = trades.sum do |t|
           gain = t.realized_gain_loss
-          gain ? convert_trade.call(gain.value, t.currency, t.entry.date) : 0
+          gain ? (convert_trade.call(gain.value, t.currency, t.entry.date) || 0) : 0
         end
 
         # Only include treatment groups that have some activity
@@ -773,7 +774,7 @@ class ReportsController < ApplicationController
         begin
           converted_amount = Money.new(entry.amount.abs, entry.currency).exchange_to(family_currency).amount
         rescue Money::ConversionError
-          converted_amount = entry.amount.abs
+          next
         end
 
         key = [ category_name, type ]

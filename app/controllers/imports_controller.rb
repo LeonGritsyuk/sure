@@ -129,6 +129,8 @@ class ImportsController < ApplicationController
   end
 
   def show
+    @missing_exchange_rates = ExchangeRate.missing_for_family(Current.family) if @import.complete?
+
     unless @import.requires_csv_workflow?
       redirect_to import_upload_path(@import), alert: t("imports.show.finalize_upload") unless @import.uploaded?
       return

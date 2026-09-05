@@ -120,8 +120,20 @@ class ExchangeRate::Importer
       total_upsert_count = 0
 
       rows.each_slice(batch_size) do |batch|
+        protected_keys = ExchangeRate
+          .where(source: %w[manual imported])
+          .where(from_currency: batch.map { |row| row[:from_currency] })
+          .where(to_currency: batch.map { |row| row[:to_currency] })
+          .where(date: batch.map { |row| row[:date] })
+          .pluck(:from_currency, :to_currency, :date)
+          .to_set
+        batch = batch.reject do |row|
+          protected_keys.include?([ row[:from_currency], row[:to_currency], row[:date] ])
+        end
+        next if batch.empty?
+
         upserted_ids = ExchangeRate.upsert_all(
-          batch,
+          batch.map { |row| row.merge(source: "provider") },
           unique_by: %i[from_currency to_currency date],
           returning: [ "id" ]
         )

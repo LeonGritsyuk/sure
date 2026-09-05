@@ -346,7 +346,7 @@ class Transaction::SearchTest < ActiveSupport::TestCase
     assert_equal Money.new(0, "USD"), totals.income_money
   end
 
-  test "totals handles missing exchange rates gracefully" do
+  test "totals excludes amounts with no available exchange rate" do
     # Create EUR transaction without exchange rate
     eur_entry = create_transaction(
       account: @checking_account,
@@ -359,8 +359,9 @@ class Transaction::SearchTest < ActiveSupport::TestCase
     totals = search.totals
 
     assert_equal 1, totals.count
-    # Should use rate of 1 when exchange rate is missing
-    assert_equal Money.new(100, "USD"), totals.expense_money # EUR 100 * 1
+    # Unconvertible foreign-currency amounts are excluded from totals rather
+    # than silently assumed to be 1:1 with the family currency.
+    assert_equal Money.new(0, "USD"), totals.expense_money
     assert_equal Money.new(0, "USD"), totals.income_money
   end
 

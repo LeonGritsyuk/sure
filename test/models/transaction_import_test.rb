@@ -70,6 +70,27 @@ class TransactionImportTest < ActiveSupport::TestCase
     assert_equal "complete", @import.status
   end
 
+  test "stores an explicit CSV FX rate on the imported transaction" do
+    @import.update!(
+      account: accounts(:depository),
+      raw_file_str: "date,amount,currency,fx_from,fx_to,fx_rate\n2024-01-01,10000,KZT,KZT,CZK,0.00523\n",
+      date_col_label: "date",
+      amount_col_label: "amount",
+      currency_col_label: "currency",
+      exchange_rate_col_label: "fx_rate",
+      exchange_rate_from_col_label: "fx_from",
+      exchange_rate_to_col_label: "fx_to",
+      date_format: "%Y-%m-%d",
+      amount_type_strategy: "signed_amount",
+      signage_convention: "inflows_negative"
+    )
+
+    @import.generate_rows_from_csv
+    @import.publish
+
+    assert_equal 0.00523, @import.entries.order(:created_at).last.transaction.exchange_rate
+  end
+
   test "imports transactions with separate type column for signage convention" do
     import = <<~CSV
       date,amount,amount_type

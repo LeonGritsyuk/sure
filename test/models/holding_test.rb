@@ -74,7 +74,13 @@ class HoldingTest < ActiveSupport::TestCase
     nvda_qty = BigDecimal("5") + BigDecimal("30")
     expected_nvda_usd = nvda_total_usd / nvda_qty
 
-    ExchangeRate.stubs(:find_or_fetch_rate).returns(OpenStruct.new(rate: 1))
+    # calculate_avg_cost joins exchange_rates directly in SQL, so a real row
+    # is needed for each trade date (stubbing the ExchangeRate model has no
+    # effect on that raw query).
+    [ 1.day.ago.to_date, Date.current ].each do |date|
+      ExchangeRate.create!(from_currency: "CAD", to_currency: "USD", date: date, rate: 1)
+    end
+
     assert_equal Money.new(expected_amzn_usd, "CAD").exchange_to("USD"), @amzn.avg_cost
     assert_equal Money.new(expected_nvda_usd, "CAD").exchange_to("USD"), @nvda.avg_cost
   end

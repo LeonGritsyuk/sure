@@ -103,7 +103,7 @@ class Holding::ReverseCalculator
         begin
           converted_price = trade_price.exchange_to(account.currency).amount
         rescue Money::ConversionError
-          converted_price = trade.price
+          next
         end
 
         tracker[security_id][:total_cost] += converted_price * trade.qty

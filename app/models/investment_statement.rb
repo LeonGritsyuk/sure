@@ -36,7 +36,7 @@ class InvestmentStatement
 
   # Total portfolio value across all investment accounts
   def portfolio_value
-    investment_accounts.sum { |a| convert_to_family_currency(a.balance, a.currency) }
+    investment_accounts.filter_map { |a| convert_to_family_currency(a.balance, a.currency) }.sum
   end
 
   def portfolio_value_money
@@ -45,7 +45,7 @@ class InvestmentStatement
 
   # Total cash in investment accounts
   def cash_balance
-    investment_accounts.sum { |a| convert_to_family_currency(a.cash_balance, a.currency) }
+    investment_accounts.filter_map { |a| convert_to_family_currency(a.cash_balance, a.currency) }.sum
   end
 
   def cash_balance_money
@@ -94,15 +94,16 @@ class InvestmentStatement
   def top_holdings(limit: 5)
     current_holdings
       .to_a
-      .sort_by { |h| -convert_to_family_currency(h.amount, h.currency) }
+      .sort_by { |h| -(convert_to_family_currency(h.amount, h.currency) || 0) }
       .first(limit)
   end
 
   # Portfolio allocation by security. Weights and amounts are computed in the
   # family's currency so cross-currency holdings compare correctly.
   def allocation
-    converted = current_holdings.to_a.map do |holding|
-      [ holding, convert_to_family_currency(holding.amount, holding.currency) ]
+    converted = current_holdings.to_a.filter_map do |holding|
+      converted = convert_to_family_currency(holding.amount, holding.currency)
+      [ holding, converted ] if converted
     end
 
     total = converted.sum { |_, value| value }
@@ -124,7 +125,7 @@ class InvestmentStatement
   def unrealized_gains
     current_holdings.sum do |holding|
       trend = holding.trend
-      trend ? convert_to_family_currency(trend.value, holding.currency) : 0
+      trend ? (convert_to_family_currency(trend.value, holding.currency) || 0) : 0
     end
   end
 
@@ -152,10 +153,10 @@ class InvestmentStatement
     return nil if holdings_with_cost_basis.empty?
 
     current = holdings_with_cost_basis.sum do |h|
-      convert_to_family_currency(h.amount, h.currency)
+      convert_to_family_currency(h.amount, h.currency) || 0
     end
     previous = holdings_with_cost_basis.sum do |h|
-      convert_to_family_currency(h.qty * h.avg_cost.amount, h.currency)
+      convert_to_family_currency(h.qty * h.avg_cost.amount, h.currency) || 0
     end
 
     Trend.new(
@@ -172,7 +173,7 @@ class InvestmentStatement
     absolute_return = ActiveRecord::Base.connection.select_value(
       ActiveRecord::Base.sanitize_sql_array([
         <<~SQL.squish,
-          SELECT COALESCE(SUM(b.net_market_flows * COALESCE(er.rate, 1)), 0)
+          SELECT COALESCE(SUM(b.net_market_flows * converted.rate), 0)
           FROM balances b
           JOIN accounts a ON a.id = b.account_id
           LEFT JOIN exchange_rates er ON (
@@ -180,6 +181,9 @@ class InvestmentStatement
             AND er.from_currency = b.currency
             AND er.to_currency = :currency
           )
+          CROSS JOIN LATERAL (
+            SELECT CASE WHEN b.currency = :currency THEN 1 ELSE er.rate END AS rate
+          ) converted
           WHERE a.id IN (:account_ids)
             AND a.family_id = :family_id
             AND a.status IN ('draft', 'active')
@@ -204,7 +208,7 @@ class InvestmentStatement
     start_value = ActiveRecord::Base.connection.select_value(
       ActiveRecord::Base.sanitize_sql_array([
         <<~SQL.squish,
-          SELECT COALESCE(SUM(b.end_balance * COALESCE(er.rate, 1)), 0)
+          SELECT COALESCE(SUM(b.end_balance * converted.rate), 0)
           FROM accounts a
           INNER JOIN balances b ON b.account_id = a.id
           LEFT JOIN exchange_rates er ON (
@@ -212,6 +216,9 @@ class InvestmentStatement
             AND er.from_currency = b.currency
             AND er.to_currency = :currency
           )
+          CROSS JOIN LATERAL (
+            SELECT CASE WHEN b.currency = :currency THEN 1 ELSE er.rate END AS rate
+          ) converted
           INNER JOIN (
             SELECT b2.account_id, MAX(b2.date) AS max_date
             FROM balances b2
@@ -289,8 +296,8 @@ class InvestmentStatement
       return amount if amount.nil?
       numeric = amount.is_a?(Money) ? amount.amount : amount
       return numeric if from_currency == family.currency
-      rate = exchange_rates[from_currency] || 1
-      numeric * rate
+      rate = exchange_rates[from_currency]
+      rate ? numeric * rate : nil
     end
 
     def all_time_totals

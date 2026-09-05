@@ -218,11 +218,11 @@ class Balance::SyncCacheTest < ActiveSupport::TestCase
     assert_equal 150.0, Balance::SyncCache.new(@account).get_holdings_value(Date.current)
   end
 
-  test "falls back to 1:1 conversion rate when exchange rate is missing for a foreign currency holding" do
+  test "excludes a foreign currency holding when exchange rate is missing instead of assuming 1:1" do
     security = Security.create!(ticker: "TST", name: "Test")
     @account.holdings.create!(security: security, date: Date.current, qty: 1, price: 100, amount: 100, currency: "EUR")
 
-    assert_equal 100, Balance::SyncCache.new(@account).get_holdings_value(Date.current)
+    assert_equal 0, Balance::SyncCache.new(@account).get_holdings_value(Date.current)
   end
 
   test "prioritizes custom rate over fetched rate" do

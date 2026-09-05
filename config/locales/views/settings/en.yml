@@ -358,9 +358,39 @@ en:
       appearance_label: Appearance
       bank_sync_label: Bank sync
       debug_label: Debug
+      exchange_rates_label: Exchange rates
     settings_nav_link_large:
       next: Next
       previous: Back
+    exchange_rates:
+      title: Exchange rates
+      new_title: Add exchange rate
+      edit_title: Edit exchange rate
+      description: Manage daily rates used to convert foreign currencies.
+      add: Add rate
+      save: Save rate
+      filter: Filter
+      any: Any
+      from: From currency
+      to: To currency
+      date: Date
+      pair: Pair
+      rate: Rate
+      source: Source
+      previous: "Provider value: %{rate}"
+      actions: Actions
+      edit: Edit
+      delete: Delete
+      delete_confirm: Delete this exchange rate?
+      empty: No exchange rates found.
+      created: Exchange rate saved.
+      updated: Exchange rate updated.
+      deleted: Exchange rate deleted.
+      missing_title: "%{count} exact exchange rates are missing."
+      sources:
+        provider: Provider
+        manual: Manual override
+        imported: Imported
     user_avatar_field:
       accepted_formats: JPG or PNG. 5MB max.
       choose: Upload photo

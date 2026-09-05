@@ -24,8 +24,8 @@ class IncomeStatement
 
     result = totals_query(transactions_scope: transactions_scope, date_range: date_range)
 
-    total_income = result.select { |t| t.classification == "income" }.sum(&:total)
-    total_expense = result.select { |t| t.classification == "expense" }.sum(&:total)
+    total_income = result.select { |t| t.classification == "income" }.sum { |t| t.total || 0 }
+    total_expense = result.select { |t| t.classification == "expense" }.sum { |t| t.total || 0 }
 
     ScopeTotals.new(
       transactions_count: result.sum(&:transactions_count),
@@ -178,7 +178,7 @@ class IncomeStatement
     def build_period_total(classification:, period:)
       # Exclude pending transactions from budget calculations
       totals = totals_for_period(period).select { |t| t.classification == classification }
-      classification_total = totals.sum(&:total)
+      classification_total = totals.sum { |t| t.total || 0 }
 
       uncategorized_category = family.categories.uncategorized
       other_investments_category = family.categories.other_investments
@@ -186,18 +186,18 @@ class IncomeStatement
       category_totals = [ *categories, uncategorized_category, other_investments_category ].map do |category|
         parent_category_total = if category.uncategorized?
           # Regular uncategorized: NULL category_id and NOT uncategorized investment
-          totals.select { |t| t.category_id.nil? && !t.is_uncategorized_investment }&.sum(&:total) || 0
+          totals.select { |t| t.category_id.nil? && !t.is_uncategorized_investment }.sum { |t| t.total || 0 }
         elsif category.other_investments?
           # Other investments: NULL category_id AND is_uncategorized_investment
-          totals.select { |t| t.category_id.nil? && t.is_uncategorized_investment }&.sum(&:total) || 0
+          totals.select { |t| t.category_id.nil? && t.is_uncategorized_investment }.sum { |t| t.total || 0 }
         else
-          totals.select { |t| t.category_id == category.id }&.sum(&:total) || 0
+          totals.select { |t| t.category_id == category.id }.sum { |t| t.total || 0 }
         end
 
         children_totals = if category.synthetic?
           0
         else
-          totals.select { |t| t.parent_category_id == category.id }&.sum(&:total) || 0
+          totals.select { |t| t.parent_category_id == category.id }.sum { |t| t.total || 0 }
         end
 
         category_total = parent_category_total + children_totals

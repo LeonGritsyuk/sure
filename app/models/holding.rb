@@ -38,6 +38,8 @@ class Holding < ApplicationRecord
     return nil unless amount
     return 0 if amount.zero?
 
+    return nil if amount_in_account_currency.nil?
+
     account.balance.zero? ? 1 : amount_in_account_currency / account.balance * 100
   end
 
@@ -261,7 +263,7 @@ class Holding < ApplicationRecord
 
       Money.new(amount, currency).exchange_to(account.currency, date: date).amount
     rescue Money::ConversionError
-      amount
+      nil
     end
 
     def calculate_trend
@@ -308,13 +310,18 @@ class Holding < ApplicationRecord
       )
 
       total_cost, total_qty = trades.pick(
-        Arel.sql("SUM(trades.price * trades.qty * COALESCE(exchange_rates.rate, 1))"),
+        Arel.sql(
+          ActiveRecord::Base.sanitize_sql_array([
+            "SUM(trades.price * trades.qty * CASE WHEN trades.currency = ? THEN 1 ELSE exchange_rates.rate END)",
+            account.currency
+          ])
+        ),
         Arel.sql("SUM(trades.qty)")
       )
 
       # Return nil when no trades exist - cost basis is genuinely unknown
       # Previously this fell back to current market price, which was misleading
-      return nil unless total_qty && total_qty > 0
+      return nil unless total_cost && total_qty && total_qty > 0
 
       Money.new(total_cost / total_qty, currency)
     end

@@ -1,0 +1,5 @@
+<%= content_for :page_title, t("settings.exchange_rates.edit_title") %>
+
+<%= settings_section title: t("settings.exchange_rates.edit_title") do %>
+  <%= render "form", exchange_rate: @exchange_rate, form_url: settings_exchange_rate_path(@exchange_rate), form_method: :patch %>
+<% end %>

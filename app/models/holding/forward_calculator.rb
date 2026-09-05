@@ -105,7 +105,7 @@ class Holding::ForwardCalculator
         begin
           converted_price = trade_price.exchange_to(account.currency).amount
         rescue Money::ConversionError
-          converted_price = trade.price
+          next
         end
 
         tracker[:total_cost] += converted_price * trade.qty
