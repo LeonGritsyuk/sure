@@ -44,6 +44,21 @@ permissions:
   packages: write
 
 jobs:
+  vars:
+    name: Compute image name
+    runs-on: ubuntu-24.04
+    outputs:
+      # GHCR (and Docker registries generally) require lowercase image refs.
+      # github.repository preserves the owner's casing (e.g. a fork under a
+      # mixed-case username), which fails the cache exporter/imagetools steps
+      # below that use it as a raw string instead of going through an action
+      # that normalizes it.
+      image_name: ${{ steps.image_name.outputs.value }}
+    steps:
+      - name: Lowercase image name
+        id: image_name
+        run: echo "value=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
   ci:
     uses: ./.github/workflows/ci.yml
     with:
@@ -51,7 +66,9 @@ jobs:
 
   build:
     name: Build Docker image
-    needs: [ ci ]
+    needs: [ ci, vars ]
+    env:
+      IMAGE_NAME: ${{ needs.vars.outputs.image_name }}
 
     strategy:
       fail-fast: false
@@ -171,7 +188,9 @@ jobs:
   merge:
     name: Merge multi-arch manifest & push multi-arch tag
     if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'schedule' || github.event.inputs.push }}
-    needs: [build]
+    needs: [ build, vars ]
+    env:
+      IMAGE_NAME: ${{ needs.vars.outputs.image_name }}
 
     timeout-minutes: 60
     runs-on: 'ubuntu-24.04'
