@@ -10,11 +10,32 @@ class ExchangeRate < ApplicationRecord
 
   belongs_to :overridden_by, class_name: "User", optional: true
 
+  # Entries whose entryable (Transaction/Trade) already carries its own explicit
+  # exchange_rate (e.g. from a CSV import's fx_rate column) don't need a global
+  # ExchangeRate row — the custom rate takes priority wherever the entry is
+  # converted, so they must not be counted as "missing".
+  HAS_CUSTOM_RATE_SQL = <<~SQL.squish
+    (
+      (entries.entryable_type = 'Transaction' AND EXISTS (
+        SELECT 1 FROM transactions
+        WHERE transactions.id = entries.entryable_id
+          AND transactions.extra ->> 'exchange_rate' IS NOT NULL
+      ))
+      OR
+      (entries.entryable_type = 'Trade' AND EXISTS (
+        SELECT 1 FROM trades
+        WHERE trades.id = entries.entryable_id
+          AND trades.extra ->> 'exchange_rate' IS NOT NULL
+      ))
+    )
+  SQL
+
   def self.missing_for_family(family)
     required = Entry
       .joins(:account)
       .where(accounts: { family_id: family.id })
       .where.not(currency: family.currency)
+      .where.not(HAS_CUSTOM_RATE_SQL)
       .distinct
       .pluck(:date, :currency)
 

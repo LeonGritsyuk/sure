@@ -114,4 +114,27 @@ class ExchangeRateTest < ActiveSupport::TestCase
     result = ExchangeRate.find_or_fetch_rate(from: "USD", to: "JPY", date: Date.current)
     assert_equal 155.0, result.rate
   end
+
+  test "missing_for_family excludes entries with an explicit custom rate" do
+    ExchangeRate.delete_all
+    family = families(:dylan_family)
+    account = accounts(:other_asset) # family currency is USD
+    date = Date.current
+
+    entry_without_custom_rate = account.entries.create!(
+      name: "No custom rate", date: date, amount: 10, currency: "EUR", entryable: Transaction.new
+    )
+    account.entries.create!(
+      name: "Has custom rate", date: date, amount: 10, currency: "EUR",
+      entryable: Transaction.new(extra: { "exchange_rate" => 1.1 })
+    )
+
+    missing = ExchangeRate.missing_for_family(family)
+
+    assert_includes missing, { date: date, from_currency: "EUR", to_currency: "USD" }
+
+    entry_without_custom_rate.destroy!
+
+    assert_empty ExchangeRate.missing_for_family(family)
+  end
 end

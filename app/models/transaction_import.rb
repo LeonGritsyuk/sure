@@ -52,6 +52,7 @@ class TransactionImport < Import
           duplicate_entry.import_locked = true  # Protect from provider sync overwrites
           updated_entries << duplicate_entry
           claimed_entry_ids.add(duplicate_entry.id)
+          upsert_imported_exchange_rate(row)
         else
           # Create new transaction (no duplicate found)
           # Mark as import_locked to protect from provider sync overwrites
@@ -70,6 +71,7 @@ class TransactionImport < Import
               import_locked: true
             )
           )
+          upsert_imported_exchange_rate(row)
         end
       end
 
@@ -118,4 +120,24 @@ class TransactionImport < Import
     csv.delete("account") if account.present?
     csv
   end
+
+  private
+    # Records the CSV-supplied rate as a global ExchangeRate (source: "imported") so it shows up
+    # and is filterable on Settings > Exchange Rates, in addition to being stored on the transaction.
+    # Only runs when both currencies are known and never overwrites a user's manual override.
+    def upsert_imported_exchange_rate(row)
+      return if row.exchange_rate.blank? || row.exchange_rate_from.blank? || row.exchange_rate_to.blank?
+      return if row.exchange_rate_from.casecmp?(row.exchange_rate_to)
+
+      rate = ExchangeRate.find_or_initialize_by(
+        from_currency: row.exchange_rate_from,
+        to_currency: row.exchange_rate_to,
+        date: row.date_iso
+      )
+      return if rate.persisted? && rate.source == "manual"
+
+      rate.rate = row.exchange_rate
+      rate.source = "imported"
+      rate.save!
+    end
 end
